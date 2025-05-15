@@ -1,0 +1,333 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model aggregated_appointment_metrics {
+  id                       String   @id
+  week_start_date          DateTime
+  created_at               DateTime @default(now())
+  updated_at               DateTime @default(now())
+  provider_id              String
+  appointment_type         String
+  mean_duration_in_hours   Float
+  practice                 String?
+  org                      String?
+  mean_appointment_revenue Float?
+
+  @@unique([provider_id, appointment_type, week_start_date], map: "aggregated_appointment_metric_provider_id_appointment_type__idx")
+}
+
+model appointments {
+  id                                   String    @id
+  patient_id                           String?
+  patient_first_name                   String?
+  patient_last_name                    String?
+  provider_id                          String
+  provider_first_name                  String?
+  provider_last_name                   String?
+  date                                 DateTime
+  length                               Int
+  contact_type                         String
+  appointment_type                     String?
+  pm_status                            String?
+  pm_status_changed_at                 DateTime?
+  notes                                String?
+  created_at                           DateTime
+  practice                             String?
+  org                                  String?
+  is_first_appointment                 Boolean?
+  cancellation_reason                  String?
+  pm_status_last_changed_by_id         String?
+  pm_status_last_changed_by_first_name String?
+  pm_status_last_changed_by_last_name  String?
+  initiator_id                         String?
+  patient_reschedule_count             Int       @default(0)
+  client_confirmed                     Boolean   @default(false)
+}
+
+model billing_forms {
+  id                 String    @id
+  external_id        String?
+  patient_id         String?
+  appointment_id     String?
+  patient_first_name String?
+  patient_last_name  String?
+  cash_appointment   Boolean?
+  promo_code         String?
+  practice           String?
+  org                String?
+  created_at         DateTime
+  updated_at         DateTime
+  deleted_at         DateTime?
+}
+
+model billing_items {
+  id                 String    @id
+  patient_id         String
+  patient_first_name String?
+  patient_last_name  String?
+  description        String
+  amount_paid        Float
+  payment_state      String?
+  created_at         DateTime
+  practice           String?
+  org                String?
+  date_of_service    DateTime?
+  is_copay           Boolean   @default(false)
+}
+
+model charting_notes {
+  id                 String    @id
+  external_id        String?
+  patient_id         String?
+  appointment_id     String?
+  current_summary    String?
+  name               String?
+  finished           Boolean
+  frozen             Boolean?
+  locked_at          DateTime?
+  locked_by_id       String?
+  patient_first_name String?
+  patient_last_name  String?
+  signed             Boolean?
+  signed_at          DateTime?
+  cpt_code_1         String?
+  cpt_code_2         String?
+  cpt_code_3         String?
+  cpt_code_4         String?
+  addendum_1         String?
+  addendum_2         String?
+  addendum_3         String?
+  practice           String?
+  org                String?
+  created_at         DateTime
+  updated_at         DateTime
+  deleted_at         DateTime?
+  time_mdm_edited    Boolean?
+  discount_code      String?
+}
+
+model claims {
+  id                            String    @id
+  patient_id                    String
+  patient_first_name            String?
+  patient_last_name             String?
+  billing_provider_id           String?
+  billing_provider_name         String?
+  rendering_provider_first_name String?
+  amount_paid                   Float?
+  client_responsibility         Float?
+  copay                         Float?
+  copay_still_owed              Float?
+  total_charge                  Float?
+  reimbursed_at                 DateTime?
+  cpt_code_names                String?
+  date_of_service               DateTime?
+  primary_plan_name             String?
+  reasons                       String?
+  status                        String?
+  created_at                    DateTime
+  updated_at                    DateTime
+  practice                      String?
+  org                           String?
+}
+
+model intake_flow {
+  id                   String    @id
+  patient_id           String?
+  patient_first_name   String?
+  patient_last_name    String?
+  practice             String?
+  org                  String?
+  status               String?
+  view_url             String?
+  form_type            String?
+  item_type            String?
+  date_to_show         DateTime?
+  display_name         String?
+  form_answer_group_id String?
+  request_label        String?
+  request_details      String?
+  request_date         DateTime?
+  complete_date        DateTime?
+}
+
+model patients {
+  id                       String   @id
+  first_name               String
+  last_name                String
+  provider_id              String?
+  provider_first_name      String?
+  provider_last_name       String?
+  age                      String?
+  gender                   String?
+  zipcode                  String?
+  ref_type                 String?
+  ref_source               String?
+  readable_source          String?
+  patient_source           String?
+  patient_source_detail    String?
+  created_at               DateTime
+  quick_notes              String?
+  primary_ins_id           String?
+  primary_ins_payer_name   String?
+  primary_ins_payer_id     String?
+  secondary_ins_id         String?
+  secondary_ins_payer_name String?
+  secondary_ins_payer_id   String?
+  tertiary_ins_id          String?
+  tertiary_ins_payer_name  String?
+  tertiary_ins_payer_id    String?
+  practice                 String?
+  org                      String?
+}
+
+model projected_appointment_metrics {
+  id                                     String   @id
+  week_start_date                        DateTime
+  provider_id                            String
+  provider_first_name                    String?
+  provider_last_name                     String?
+  trailing_weekly_revenue                Float    @default(0)
+  total_potential_appointments           Int
+  created_at                             DateTime @default(now())
+  updated_at                             DateTime
+  practice                               String?
+  org                                    String?
+  occurred_rate                          Float    @default(0)
+  upcoming_existing_patient_appointments Int      @default(0)
+  upcoming_new_patient_appointments      Int      @default(0)
+  in_visit_followup_count                Int      @default(0)
+  in_visit_followup_rate                 Float    @default(0)
+  saved_cancellation_count               Int      @default(0)
+  saved_cancellation_rate                Float    @default(0)
+  occurred_count                         Int      @default(0)
+  availability_hours                     Float    @default(0)
+  booked_count                           Int      @default(0)
+  cancellation_count                     Int      @default(0)
+  mean_duration_in_hours                 Float    @default(0)
+  no_show_count                          Int      @default(0)
+  no_show_rate                           Float    @default(0)
+  same_day_cancellation_count            Int      @default(0)
+  same_day_cancellation_rate             Float    @default(0)
+  other_count                            Int      @default(0)
+  other_rate                             Float    @default(0)
+  attended_rate                          Float    @default(0)
+  booked_rate                            Float    @default(0)
+  mean_appointment_revenue               Float?
+  total_available_hours                  Float    @default(0)
+  total_busy_hours                       Float    @default(0)
+  trailing_saved_cancellation_count      Int      @default(0)
+  trailing_saved_cancellation_rate       Float    @default(0)
+}
+
+model providers {
+  id         String  @id
+  first_name String
+  last_name  String
+  email      String
+  practice   String?
+  org        String
+}
+
+model reconciled_claims {
+  id                          Int       @id @default(autoincrement())
+  practice                    String
+  appointment_id              String
+  provider_name               String
+  provider_id                 Int
+  patient_id                  Int
+  appointment_date            DateTime
+  patient_name                String
+  appointment_name            String
+  insurance                   String?
+  cpt_code_1                  String?
+  cpt_code_2                  String?
+  cpt_code_3                  String?
+  cpt_code_4                  String?
+  time_mdm_edited             Boolean?
+  charting_note_signed_locked Boolean?
+  billing_type                String?
+  discount_code               String?
+  payment_state               String?
+  copay_cents                 Int?
+  copay_charged_at            DateTime?
+  copay_note                  String?
+  copay_charged               Boolean?
+  copay_billing_item_id       Int?
+  cash_pay_billing_item_id    Int?
+  cpt_code_1_amount           Float?
+  cpt_code_1_modified         String?
+  cpt_code_1_modified_amount  Float?
+  cpt_code_2_amount           Float?
+  cpt_code_2_modified         String?
+  cpt_code_2_modified_amount  Float?
+  cpt_code_3_amount           Float?
+  cpt_code_3_modified         String?
+  cpt_code_3_modified_amount  Float?
+  cpt_code_4_amount           Float?
+  cpt_code_4_modified         String?
+  cpt_code_4_modified_amount  Float?
+  matched_insurance_name      String?
+  total_contracted_amount     Float?
+  provider_net_amount         Float?
+  submitted                   String?
+  submitted_date              DateTime?
+  payment_status              String?
+  cleared_validation_at       DateTime?
+  paid_to_company_at          DateTime?
+  paid_to_provider            DateTime?
+  processing_status           String?
+  internal_notes              String?
+  created_at                  DateTime  @default(now())
+  updated_at                  DateTime  @default(now())
+
+  @@unique([practice, appointment_id], map: "reconciled_claims_practice_appointment_id_idx")
+}
+
+model reconciliation_view {
+  id                              Int       @id @default(autoincrement())
+  appointment_id                  String
+  date                            DateTime
+  patient_id                      String?
+  patient_first_name              String?
+  patient_last_name               String?
+  provider_name                   String?
+  appointment_description         String?
+  appointment_notes               String?
+  insurance                       String?
+  appointment_status              String?
+  promo_code                      String?
+  appointment_status_needs_review Boolean?
+  billing_type                    String?
+  copay                           Float?
+  charting_note_exists            Boolean   @default(false)
+  charting_note_signed_locked     Boolean   @default(false)
+  copay_charged                   Boolean   @default(false)
+  payment_state                   String?
+  claim_created                   Boolean   @default(false)
+  claim_status                    String?
+  amount_reimbursed               Float?
+  patient_responsibility          Float?
+  time_mdm_edited                 Boolean?
+  cpt_code_1                      String?
+  cpt_code_2                      String?
+  cpt_code_3                      String?
+  cpt_code_4                      String?
+  claim_cpt_codes                 String?
+  addendum_1                      String?
+  addendum_2                      String?
+  addendum_3                      String?
+  practice                        String?
+  org                             String
+  quick_notes                     String?
+  claim_created_at                DateTime?
+  reimbursed_at                   DateTime?
+  discount_code                   String?
+  provider_id                     String?
+}
