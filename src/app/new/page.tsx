@@ -54,7 +54,7 @@ import { TrendingUp } from "lucide-react";
 import React from "react";
 import { PieSectorDataItem } from "recharts/types/polar/Pie";
 import { ChartConfig } from "@/components/ui/chart";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, CheckCheckIcon, ClockIcon } from "lucide-react";
 
 type ProjectedMetrics = {
   week_start_date: string;
@@ -79,6 +79,7 @@ type MetricCard = {
   description?: string;
   trend?: number;
   format?: "percentage" | "currency" | "number";
+  icon?: React.ReactNode;
 };
 
 type MetricCardProps = {
@@ -98,9 +99,13 @@ function MetricCard({ metric }: MetricCardProps) {
   };
 
   return (
-    <Card className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+    <Card
+      className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow"
+      title={metric.description}
+    >
       <CardContent className="pt-6">
         <div className="flex items-start gap-4">
+          {metric.icon && <div className="flex-shrink-0 mr-4">{metric.icon}</div>}
           <div className="text-[#4A314D]">
             <h3 className="text-sm font-medium mb-1">{metric.title}</h3>
             <div className="text-3xl font-semibold">{formattedValue()}</div>
@@ -149,50 +154,65 @@ const chartConfig = {
 };
 
 export function RevenueTrendCard({ data }: { data: any[] }) {
-  const chartConfig = {
-    weeklyRevenue: {
-      label: "Weekly Revenue",
-      color: "hsl(171, 77%, 35%)",
-    },
-  } satisfies ChartConfig;
-
   // Calculate monthly average and current month comparison
-  const currentMonth =
-    data.slice(-4).reduce((acc, curr) => acc + curr.weeklyRevenue, 0) / 4;
-  const previousMonths = data.slice(0, -4);
-  const monthlyAverage =
-    previousMonths.reduce((acc, curr) => acc + curr.weeklyRevenue, 0) /
-    previousMonths.length;
+  const currentMonthData = data.slice(-4);
+  const previousMonthsData = data.slice(0, data.length - 4);
 
-  const trend = ((currentMonth - monthlyAverage) / monthlyAverage) * 100;
+  const currentMonthRevenue = currentMonthData.length > 0 
+    ? currentMonthData.reduce((acc, curr) => acc + curr.weeklyRevenue, 0) / currentMonthData.length
+    : 0;
+  
+  const historicalAverageRevenue = previousMonthsData.length > 0
+    ? previousMonthsData.reduce((acc, curr) => acc + curr.weeklyRevenue, 0) / previousMonthsData.length
+    : 0;
+
+  const trend = historicalAverageRevenue !== 0 
+    ? ((currentMonthRevenue - historicalAverageRevenue) / historicalAverageRevenue) * 100
+    : (currentMonthRevenue > 0 ? 100 : 0); // Handle case where historical average is 0
 
   return (
-    <div className="bg-[#002137] rounded-xl p-6">
-      <h2 className="text-2xl mb-2">Revenue Trend</h2>
-      <p className="text-gray-400 mb-6">Weekly revenue performance</p>
+    <div className="bg-white text-[#4A314D] rounded-xl p-6 shadow-sm">
+      <h2 className="text-2xl mb-2" style={{ color: colors.text }}>Revenue Trend</h2>
+      <p className="opacity-60 mb-6" style={{ color: colors.text }}>Weekly revenue performance</p>
       <LineChart data={data} className="h-[200px] w-full">
-        <CartesianGrid stroke="#0A3142" />
+        <CartesianGrid stroke={colors.gridLines} />
         <XAxis
           dataKey="date"
-          stroke="#4A6B7C"
+          stroke={colors.text}
+          tick={{ fill: colors.text, fontSize: 12 }}
+          tickLine={{ stroke: colors.text }}
+          axisLine={{ stroke: colors.text }}
           tickFormatter={(value) => value.split(" ")[0]}
         />
-        <YAxis stroke="#4A6B7C" tickFormatter={(value) => `${value}k`} />
+        <YAxis 
+          stroke={colors.text} 
+          tick={{ fill: colors.text, fontSize: 12 }}
+          tickLine={{ stroke: colors.text }}
+          axisLine={{ stroke: colors.text }}
+          tickFormatter={(value) => `${value}k`} 
+        />
         <Line
           type="monotone"
           dataKey="weeklyRevenue"
-          stroke="#00E5D1"
+          stroke={colors.coral}
           strokeWidth={2}
           dot={false}
         />
         <Tooltip
-          cursor={{ stroke: "#4A6B7C", strokeWidth: 1 }}
-          content={({ active, payload }) => {
+          cursor={{ stroke: colors.lavender, strokeWidth: 1 }}
+          content={({ active, payload, label }) => {
             if (active && payload && payload.length) {
               return (
-                <div className="bg-[#001524] p-3 rounded border border-[#4A6B7C]">
-                  <p className="text-white">{payload[0].payload.date}</p>
-                  <p className="text-[#00E5D1]">
+                <div 
+                  style={{
+                    backgroundColor: colors.tooltipBg,
+                    padding: "0.75rem",
+                    borderRadius: "0.25rem",
+                    border: `1px solid ${colors.lavender}`,
+                  }}
+                >
+                  <p style={{ color: colors.white, marginBottom: "0.25rem", fontWeight: 'bold' }}>{label}</p>
+                  <p style={{ color: colors.coral }}>
                     ${payload[0].value.toLocaleString()}
                   </p>
                 </div>
@@ -203,9 +223,14 @@ export function RevenueTrendCard({ data }: { data: any[] }) {
         />
       </LineChart>
       <div className="mt-4">
-        <p className="text-[#00E5D1] text-lg">
-          {trend > 0 ? "Up" : "Down"} {Math.abs(trend).toFixed(1)}
+        <p className="text-lg" style={{ color: trend >= 0 ? colors.coral : colors.text }}>
+          {trend >= 0 ? "Up" : "Down"} {Math.abs(trend).toFixed(1)}%
         </p>
+        {/* Optional: Display current and historical averages if needed, styled with colors.text */}
+        {/* <p style={{ color: colors.text, opacity: 0.8, fontSize: '0.875rem' }}>
+          Current month avg: ${currentMonthRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}<br/>
+          Historical avg: ${historicalAverageRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}
+        </p> */}
       </div>
     </div>
   );
@@ -238,20 +263,20 @@ const AppointmentProjectionsChart = ({ data, provider }) => (
           dataKey="date"
           stroke="#4A314D"
           tick={{
-            fill: "#4A314D",
+            fill: colors.text,
             fontSize: 12,
           }}
-          tickLine={{ stroke: "#4A314D" }}
+          tickLine={{ stroke: colors.text }}
           axisLine={false}
           dy={10}
         />
         <YAxis
-          stroke="#4A314D"
+          stroke={colors.text}
           tick={{
-            fill: "#4A314D",
+            fill: colors.text,
             fontSize: 12,
           }}
-          tickLine={{ stroke: "#4A314D" }}
+          tickLine={{ stroke: colors.text }}
           domain={[0, 35]}
           ticks={[0, 18, 20, 25, 30, 35]}
           axisLine={false}
@@ -262,7 +287,7 @@ const AppointmentProjectionsChart = ({ data, provider }) => (
             offset: -40,
             style: {
               textAnchor: "middle",
-              fill: "#4A314D",
+              fill: colors.text,
               fontSize: 12,
             },
           }}
@@ -273,7 +298,7 @@ const AppointmentProjectionsChart = ({ data, provider }) => (
           name="New"
           stackId="1"
           stroke="none"
-          fill="#FFB5B5"
+          fill={colors.coral}
           fillOpacity={1}
         />
         <Area
@@ -282,48 +307,61 @@ const AppointmentProjectionsChart = ({ data, provider }) => (
           name="Existing"
           stackId="1"
           stroke="none"
-          fill="#E6D7E9"
+          fill={colors.lavender}
           fillOpacity={1}
         />
         <Tooltip
-          content={({ active, payload }) => {
+          content={({ active, payload, label }) => {
             if (active && payload?.length) {
+              const newPatientData = payload.find(p => p.name === "New");
+              const existingPatientData = payload.find(p => p.name === "Existing");
               return (
-                <div className="bg-white text-[#4A314D] p-2 rounded shadow-sm border border-[#E6D7E9]">
-                  <p className="font-medium mb-1">Feb 6, 2024</p>
+                <div
+                  style={{
+                    backgroundColor: colors.tooltipBg,
+                    padding: "0.75rem",
+                    borderRadius: "0.25rem",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                    border: `1px solid ${colors.lavender}`,
+                  }}
+                >
+                  <p style={{ color: colors.white, marginBottom: "0.25rem", fontWeight: 'bold' }}>
+                    {label}
+                  </p>
                   <div className="flex flex-col gap-1">
-                    <p>Existing : 22</p>
-                    <p>New : 9</p>
+                    <p style={{ color: colors.lavender }}>
+                      Existing : {existingPatientData ? existingPatientData.value : 0}
+                    </p>
+                    <p style={{ color: colors.coral }}>
+                      New : {newPatientData ? newPatientData.value : 0}
+                    </p>
                   </div>
                 </div>
               );
             }
             return null;
           }}
-          position={{ x: 300, y: 100 }}
-          isAnimationActive={false}
-          active={true}
         />
         <ReferenceLine
-          x="2024-04-19"
-          stroke="#4A314D"
+          x="2024-04-19" // This date might need to be dynamic or removed if not always relevant
+          stroke={colors.text}
           strokeDasharray="3 3"
           strokeWidth={1}
         />
         {/* Y-axis tick values */}
-        <text x={40} y={20} fill="#4A314D" fontSize={12}>
+        <text x={40} y={20} fill={colors.text} fontSize={12}>
           35
         </text>
-        <text x={40} y={85} fill="#4A314D" fontSize={12}>
+        <text x={40} y={85} fill={colors.text} fontSize={12}>
           30
         </text>
-        <text x={40} y={150} fill="#4A314D" fontSize={12}>
+        <text x={40} y={150} fill={colors.text} fontSize={12}>
           20
         </text>
-        <text x={40} y={215} fill="#4A314D" fontSize={12}>
+        <text x={40} y={215} fill={colors.text} fontSize={12}>
           18
         </text>
-        <text x={40} y={280} fill="#4A314D" fontSize={12}>
+        <text x={40} y={280} fill={colors.text} fontSize={12}>
           0
         </text>
       </AreaChart>
@@ -705,6 +743,8 @@ export default function ProjectedMetricsPage() {
               title: "Booked Rate",
               value: latestMetrics.booked_rate,
               format: "percentage",
+              icon: <CalendarIcon className="h-6 w-6 text-[#4A314D]" />,
+              description: "Percentage of appointments booked out of total available slots.",
             }}
           />
           <MetricCard
@@ -712,6 +752,8 @@ export default function ProjectedMetricsPage() {
               title: "Occurred Rate",
               value: latestMetrics.occurred_rate,
               format: "percentage",
+              icon: <CheckCheckIcon className="h-6 w-6 text-[#4A314D]" />,
+              description: "Percentage of appointments that were completed as scheduled.",
             }}
           />
           <MetricCard
@@ -719,11 +761,13 @@ export default function ProjectedMetricsPage() {
               title: "Available Hours",
               value: latestMetrics.availability_hours,
               format: "number",
+              icon: <ClockIcon className="h-6 w-6 text-[#4A314D]" />,
+              description: "Total number of hours available for booking this week.",
             }}
           />
         </div>
 
-        <div className="flex justify-between items-center mb-8 bg-[#FFFFFF] text-[#4A314D] rounded-xl p-4 border border-[#E6D7E9]">
+        <div className="sticky top-8 z-10 flex justify-between items-center mb-8 bg-white text-[#4A314D] rounded-xl p-4 border border-[#E6D7E9] shadow-md">
           <SelectionBar
             providers={providers}
             selectedProvider={selectedProvider}
@@ -767,7 +811,7 @@ export default function ProjectedMetricsPage() {
         </div> */}
 
         {/* Appointment Projections */}
-        <div className="bg-[#FFFFF8] text-white rounded-xl p-6 mb-8 border border-[#E6D7E9]">
+        <div className="bg-white text-[#4A314D] rounded-2xl p-6 shadow-sm border border-[#E6D7E9] mb-8">
           {loading ? (
             <AreaChartSkeleton />
           ) : (
@@ -788,7 +832,7 @@ export default function ProjectedMetricsPage() {
             {loading ? (
               <PieChartSkeleton />
             ) : (
-              <div className="bg-white w-full h-[300px]">
+              <div className="bg-white w-full h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -798,44 +842,93 @@ export default function ProjectedMetricsPage() {
                           value:
                             latestMetrics.upcoming_new_patient_appointments ??
                             0,
-                          fill: "#8E4585",
+                          fill: colors.coral,
                         },
                         {
                           name: "Existing Patients",
                           value:
                             latestMetrics.upcoming_existing_patient_appointments ??
                             0,
-                          fill: "#E94E77",
+                          fill: colors.lavender,
                         },
                       ]}
                       innerRadius={60}
-                      outerRadius={100}
+                      outerRadius={130}
                       dataKey="value"
+                      labelLine={false}
                     >
+                      <LabelList
+                        dataKey="value"
+                        position="outside"
+                        offset={10}
+                        formatter={(value: number, entry: any) => {
+                          const total =
+                            (latestMetrics.upcoming_new_patient_appointments ?? 0) +
+                            (latestMetrics.upcoming_existing_patient_appointments ?? 0);
+                          const percentage = total > 0 ? (value / total) * 100 : 0;
+                          return `${percentage.toFixed(0)}% (${value})`;
+                        }}
+                        className="text-sm fill-gray-500"
+                      />
                       <Label
                         value={`${
-                          latestMetrics.upcoming_new_patient_appointments +
-                          latestMetrics.upcoming_existing_patient_appointments
+                          (latestMetrics.upcoming_new_patient_appointments ?? 0) +
+                          (latestMetrics.upcoming_existing_patient_appointments ?? 0)
                         }`}
                         position="center"
-                        className="text-2xl font-bold text-white"
+                        className="text-2xl font-bold"
+                        fill={colors.text} // Using text color for better contrast on white bg potentially
                       />
                     </Pie>
                     <Tooltip
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
+                          const total =
+                            (latestMetrics.upcoming_new_patient_appointments ?? 0) +
+                            (latestMetrics.upcoming_existing_patient_appointments ?? 0);
+                          const percentage = total > 0 ? (payload[0].value / total) * 100 : 0;
                           return (
-                            <div className="bg-[#4A314D] p-3 rounded border border-[#8E4585]">
-                              <p className="text-[#8E4585]">
+                            <div
+                              className="p-3 rounded border"
+                              style={{
+                                backgroundColor: colors.tooltipBg,
+                                borderColor: colors.lavender,
+                              }}
+                            >
+                              <p style={{ color: colors.coral }}>
                                 {payload[0].name}
                               </p>
-                              <p className="text-white">
-                                {payload[0].value} patients
+                              <p style={{ color: colors.white }}>
+                                {payload[0].value} patients ({percentage.toFixed(0)}%)
                               </p>
                             </div>
                           );
                         }
                         return null;
+                      }}
+                    />
+                    <Legend
+                      verticalAlign="bottom"
+                      height={36}
+                      content={(props) => {
+                        const { payload } = props;
+                        return (
+                          <ul className="flex justify-center gap-4">
+                            {payload.map((entry, index) => (
+                              <li
+                                key={`item-${index}`}
+                                className="flex items-center text-sm"
+                                style={{ color: entry.color }}
+                              >
+                                <span
+                                  className="w-3 h-3 mr-2 inline-block"
+                                  style={{ backgroundColor: entry.color }}
+                                ></span>
+                                {entry.value}
+                              </li>
+                            ))}
+                          </ul>
+                        );
                       }}
                     />
                   </PieChart>
@@ -845,33 +938,50 @@ export default function ProjectedMetricsPage() {
           </div>
 
           {/* Weekly Utilization */}
-          <div className="bg-[#FFFFFF] text-white rounded-2xl p-6 shadow-sm border border-[#E6D7E9]">
-            <h2 className="text-2xl mb-2">Weekly Utilization</h2>
-            <p className="text-gray-400 mb-6">Hours booked vs capacity</p>
+          <div className="bg-white text-[#4A314D] rounded-2xl p-6 shadow-sm border border-[#E6D7E9]">
+            <h2 className="text-2xl mb-2" style={{ color: colors.text }}>Weekly Utilization</h2>
+            <p className="opacity-60 mb-6" style={{ color: colors.text }}>Hours booked vs capacity</p>
             {loading ? (
               <BarChartSkeleton />
             ) : (
               <div className="bg-white w-full h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
-                    <CartesianGrid stroke="#6D4D70" />
+                    <CartesianGrid stroke={colors.gridLines} />
                     <XAxis
                       dataKey="date"
-                      stroke="#4A6B7C"
+                      stroke={colors.text}
+                      tickLine={{ stroke: colors.text }}
+                      axisLine={{ stroke: colors.text }}
                       tickFormatter={(value) => value.split(" ")[0]}
+                      tick={{ fill: colors.text }}
                     />
-                    <YAxis stroke="#4A6B7C" />
+                    <YAxis
+                      stroke={colors.text}
+                      tickLine={{ stroke: colors.text }}
+                      axisLine={{ stroke: colors.text }}
+                      tick={{ fill: colors.text }}
+                    />
                     <Bar
                       dataKey="utilizationRate"
-                      fill="#8E4585"
+                      fill={colors.lavender}
                       radius={[4, 4, 0, 0]}
                     />
                     <Tooltip
-                      cursor={{ fill: "rgba(74, 107, 124, 0.1)" }}
+                      cursor={{ fill: "rgba(230, 215, 233, 0.2)" }} // Semi-transparent lavender
                       content={({ active, payload }) => {
                         if (active && payload?.length) {
                           return (
-                            <div className="bg-white text-[#4A314D] px-3 py-2 rounded shadow-sm border border-[#E6D7E9]">
+                            <div
+                              style={{
+                                backgroundColor: colors.tooltipBg,
+                                color: colors.white,
+                                padding: "0.75rem",
+                                borderRadius: "0.25rem",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                                border: `1px solid ${colors.lavender}`,
+                              }}
+                            >
                               <p className="text-sm">{payload[0].value}%</p>
                             </div>
                           );
@@ -998,66 +1108,51 @@ export default function ProjectedMetricsPage() {
             <p className="text-[#4A314D] opacity-60 mb-6">
               Key performance metrics
             </p>
-            <div className="w-full h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart
-                  data={[
-                    {
-                      subject: "Utilization",
-                      value: latestMetrics.booked_rate * 100,
-                      fullMark: 100,
-                    },
-                    {
-                      subject: "Occurred Rate",
-                      value: latestMetrics.occurred_rate * 100,
-                      fullMark: 100,
-                    },
-                    {
-                      subject: "Revenue",
-                      value:
-                        (latestMetrics.trailing_weekly_revenue / 5000) * 100, // Normalized to percentage
-                      fullMark: 100,
-                    },
-                  ]}
-                >
-                  <PolarGrid stroke="#6D4D70" gridType="circle" />
-                  <PolarAngleAxis
-                    dataKey="subject"
-                    stroke="#4A6B7C"
-                    tick={{ fill: "#4A6B7C", fontSize: 14 }}
-                  />
-                  <PolarRadiusAxis
-                    stroke="#6D4D70"
-                    tick={{ fill: "#4A6B7C" }}
-                    angle={30}
-                    domain={[0, 100]}
-                  />
-                  <Radar
-                    name="Metrics"
-                    dataKey="value"
-                    stroke="#8E4585"
-                    fill="#8E4585"
-                    fillOpacity={0.3}
-                  />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="bg-[#4A314D] p-3 rounded border border-[#8E4585]">
-                            <p className="text-white">
-                              {payload[0].payload.subject}
-                            </p>
-                            <p className="text-[#8E4585]">
-                              {payload[0].value.toFixed(1)}%
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                </RadarChart>
-              </ResponsiveContainer>
+            <div className="mt-6">
+              {/* Metric 1: Utilization */}
+              <div className="mb-4">
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium" style={{ color: colors.text }}>Utilization</span>
+                  <span className="text-sm font-medium" style={{ color: colors.text }}>
+                    {(latestMetrics.booked_rate * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <Progress 
+                  value={latestMetrics.booked_rate * 100} 
+                  style={{ backgroundColor: colors.progressBg }}
+                  className={`w-full [&>div]:bg-[${colors.progressBar}]`}
+                />
+              </div>
+
+              {/* Metric 2: Occurred Rate */}
+              <div className="mb-4">
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium" style={{ color: colors.text }}>Occurred Rate</span>
+                  <span className="text-sm font-medium" style={{ color: colors.text }}>
+                    {(latestMetrics.occurred_rate * 100).toFixed(1)}%
+                  </span>
+                </div>
+                <Progress 
+                  value={latestMetrics.occurred_rate * 100} 
+                  style={{ backgroundColor: colors.progressBg }}
+                  className={`w-full [&>div]:bg-[${colors.progressBar}]`}
+                />
+              </div>
+
+              {/* Metric 3: Weekly Revenue */}
+              <div className="mb-4">
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium" style={{ color: colors.text }}>Weekly Revenue</span>
+                  <span className="text-sm font-medium" style={{ color: colors.text }}>
+                    ${latestMetrics.trailing_weekly_revenue.toLocaleString()}
+                  </span>
+                </div>
+                <Progress 
+                  value={Math.min((latestMetrics.trailing_weekly_revenue / 5000) * 100, 100)} 
+                  style={{ backgroundColor: colors.progressBg }}
+                  className={`w-full [&>div]:bg-[${colors.progressBar}]`}
+                />
+              </div>
             </div>
             <div className="flex justify-end mt-4">
               <CornerHealthLogo />
