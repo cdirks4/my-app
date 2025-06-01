@@ -158,15 +158,15 @@ export function RevenueTrendCard({ data }: { data: any[] }) {
   const currentMonthData = data.slice(-4);
   const previousMonthsData = data.slice(0, data.length - 4);
 
-  const currentMonthRevenue = currentMonthData.length > 0 
+  const currentMonthRevenue = currentMonthData.length > 0
     ? currentMonthData.reduce((acc, curr) => acc + curr.weeklyRevenue, 0) / currentMonthData.length
     : 0;
-  
+
   const historicalAverageRevenue = previousMonthsData.length > 0
     ? previousMonthsData.reduce((acc, curr) => acc + curr.weeklyRevenue, 0) / previousMonthsData.length
     : 0;
 
-  const trend = historicalAverageRevenue !== 0 
+  const trend = historicalAverageRevenue !== 0
     ? ((currentMonthRevenue - historicalAverageRevenue) / historicalAverageRevenue) * 100
     : (currentMonthRevenue > 0 ? 100 : 0); // Handle case where historical average is 0
 
@@ -184,12 +184,12 @@ export function RevenueTrendCard({ data }: { data: any[] }) {
           axisLine={{ stroke: colors.text }}
           tickFormatter={(value) => value.split(" ")[0]}
         />
-        <YAxis 
-          stroke={colors.text} 
+        <YAxis
+          stroke={colors.text}
           tick={{ fill: colors.text, fontSize: 12 }}
           tickLine={{ stroke: colors.text }}
           axisLine={{ stroke: colors.text }}
-          tickFormatter={(value) => `${value}k`} 
+          tickFormatter={(value) => `${value}k`}
         />
         <Line
           type="monotone"
@@ -203,7 +203,7 @@ export function RevenueTrendCard({ data }: { data: any[] }) {
           content={({ active, payload, label }) => {
             if (active && payload && payload.length) {
               return (
-                <div 
+                <div
                   style={{
                     backgroundColor: colors.tooltipBg,
                     padding: "0.75rem",
@@ -567,16 +567,7 @@ export default function ProjectedMetricsPage() {
     { key: "existingPatients", label: "Existing Patients" },
   ];
 
-  useEffect(() => {
-    if (projectedMetrics.length > 0) {
-      const options = [
-        ...new Set(projectedMetrics.map((m) => m.week_start_date)),
-      ].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-      setWeekOptions(options);
-      if (!startDate) setStartDate(options[options.length - 1]);
-      if (!endDate) setEndDate(options[0]);
-    }
-  }, [projectedMetrics]);
+  // Removed the useEffect hook that depended on [projectedMetrics]
 
   useEffect(() => {
     async function fetchData() {
@@ -600,16 +591,17 @@ export default function ProjectedMetricsPage() {
         setProjectedMetrics(metricsData);
         setProviders(providersData);
 
-        // Set date range options
-        const sortedDates = [
+        // Authoritatively set date range options based on new metricsData
+        const newSortedDates = [
           ...new Set(
             metricsData.map((m: ProjectedMetrics) => m.week_start_date)
           ),
-        ].sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+        ].sort((a, b) => new Date(b).getTime() - new Date(a).getTime()); // newest to oldest
 
-        setWeekOptions(sortedDates);
-        if (!startDate) setStartDate(sortedDates[sortedDates.length - 1]);
-        if (!endDate) setEndDate(sortedDates[0]);
+        setWeekOptions(newSortedDates);
+        // Set startDate to the oldest date from the new set, endDate to the newest
+        setStartDate(newSortedDates.length > 0 ? newSortedDates[newSortedDates.length - 1] : "");
+        setEndDate(newSortedDates.length > 0 ? newSortedDates[0] : "");
 
         setLoading(false);
       } catch (err) {
@@ -649,8 +641,10 @@ export default function ProjectedMetricsPage() {
             existingPatients: 0,
             newPatients: 0,
             weeklyRevenue: 0,
-            utilizationRate: 0,
-            count: 0,
+            // Remove utilizationRate and count, add new hour fields
+            availability_hours: 0,
+            total_potential_appointments: 0,
+            // count: 0, // Not strictly needed if not averaging here
           };
         }
 
@@ -658,22 +652,33 @@ export default function ProjectedMetricsPage() {
           m.upcoming_existing_patient_appointments ?? 0;
         acc[date].newPatients += m.upcoming_new_patient_appointments ?? 0;
         acc[date].weeklyRevenue += Number(m.trailing_weekly_revenue ?? 0);
-        acc[date].utilizationRate +=
-          (m.availability_hours / m.total_potential_appointments) * 100;
-        acc[date].count += 1;
+        acc[date].availability_hours += m.availability_hours ?? 0;
+        acc[date].total_potential_appointments += m.total_potential_appointments ?? 0;
+        // acc[date].count += 1; // Only if averaging something not summed
 
         return acc;
       }, {} as Record<string, any>);
 
-    // Convert to array and calculate averages
+    // Convert to array and process final fields
     return Object.values(aggregatedData)
-      .map((item) => ({
-        ...item,
-        existingPatients: Math.round(item.existingPatients / item.count),
-        newPatients: Math.round(item.newPatients / item.count),
-        weeklyRevenue: Number((item.weeklyRevenue / item.count).toFixed(2)),
-        utilizationRate: Number((item.utilizationRate / item.count).toFixed(2)),
-      }))
+      .map((item) => {
+        // Assuming existingPatients, newPatients, weeklyRevenue are summed, not averaged
+        // If they were previously divided by count, that logic needs to be here or removed if sums are desired.
+        // For this task, we focus on hour fields. Assume other fields are handled as direct sums or are already correct.
+        const availability_hours = item.availability_hours;
+        const total_potential_appointments = item.total_potential_appointments;
+        return {
+          date: item.date,
+          existingPatients: item.existingPatients, // Presumed sum or already handled
+          newPatients: item.newPatients, // Presumed sum or already handled
+          weeklyRevenue: item.weeklyRevenue, // Presumed sum or already handled
+          availability_hours,
+          total_potential_appointments,
+          remaining_hours: Math.max(0, total_potential_appointments - availability_hours),
+          // Optional: Recalculate utilizationRate if needed for other charts from this chartData
+          utilizationRate: total_potential_appointments > 0 ? Number(((availability_hours / total_potential_appointments) * 100).toFixed(2)) : 0,
+        };
+      })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [projectedMetrics, startDate, endDate]);
 
@@ -954,41 +959,47 @@ export default function ProjectedMetricsPage() {
                       tickLine={{ stroke: colors.text }}
                       axisLine={{ stroke: colors.text }}
                       tickFormatter={(value) => value.split(" ")[0]}
-                      tick={{ fill: colors.text }}
+                      tick={{ fill: colors.text, fontSize: 12 }}
                     />
                     <YAxis
                       stroke={colors.text}
                       tickLine={{ stroke: colors.text }}
                       axisLine={{ stroke: colors.text }}
-                      tick={{ fill: colors.text }}
-                    />
-                    <Bar
-                      dataKey="utilizationRate"
-                      fill={colors.lavender}
-                      radius={[4, 4, 0, 0]}
+                      tick={{ fill: colors.text, fontSize: 12 }}
+                      label={{ value: 'Hours', angle: -90, position: 'insideLeft', style: { fill: colors.text, fontSize: 12 } }}
                     />
                     <Tooltip
-                      cursor={{ fill: "rgba(230, 215, 233, 0.2)" }} // Semi-transparent lavender
-                      content={({ active, payload }) => {
-                        if (active && payload?.length) {
+                      cursor={{ fill: "rgba(230, 215, 233, 0.2)" }}
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          const item = payload[0].payload;
+                          const usedHours = item.availability_hours;
+                          const totalHours = item.total_potential_appointments;
+                          const remainingHours = item.remaining_hours;
+                          const rate = totalHours > 0 ? ((usedHours / totalHours) * 100).toFixed(1) : 0;
                           return (
                             <div
                               style={{
                                 backgroundColor: colors.tooltipBg,
-                                color: colors.white,
                                 padding: "0.75rem",
                                 borderRadius: "0.25rem",
-                                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                                 border: `1px solid ${colors.lavender}`,
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
                               }}
                             >
-                              <p className="text-sm">{payload[0].value}%</p>
+                              <p style={{ color: colors.white, fontWeight: 'bold', marginBottom: '0.25rem' }}>{label}</p>
+                              <p style={{ color: colors.lavender }}>Used: {usedHours} hrs</p>
+                              <p style={{ color: colors.progressBg }}>Available: {remainingHours} hrs</p>
+                              <p style={{ color: colors.white }}>Total: {totalHours} hrs</p>
+                              <p style={{ color: colors.white }}>Rate: {rate}%</p>
                             </div>
                           );
                         }
                         return null;
                       }}
                     />
+                    <Bar dataKey="availability_hours" stackId="a" fill={colors.lavender} name="Used Hours" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="remaining_hours" stackId="a" fill={colors.progressBg} name="Available Capacity" radius={[0, 0, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1117,10 +1128,10 @@ export default function ProjectedMetricsPage() {
                     {(latestMetrics.booked_rate * 100).toFixed(1)}%
                   </span>
                 </div>
-                <Progress 
-                  value={latestMetrics.booked_rate * 100} 
+                <Progress
+                  value={latestMetrics.booked_rate * 100}
                   style={{ backgroundColor: colors.progressBg }}
-                  className={`w-full [&>div]:bg-[${colors.progressBar}]`}
+                  className="w-full [&>[data-slot=progress-indicator]]:bg-[#E6D7E9]"
                 />
               </div>
 
@@ -1132,10 +1143,10 @@ export default function ProjectedMetricsPage() {
                     {(latestMetrics.occurred_rate * 100).toFixed(1)}%
                   </span>
                 </div>
-                <Progress 
-                  value={latestMetrics.occurred_rate * 100} 
+                <Progress
+                  value={latestMetrics.occurred_rate * 100}
                   style={{ backgroundColor: colors.progressBg }}
-                  className={`w-full [&>div]:bg-[${colors.progressBar}]`}
+                  className="w-full [&>[data-slot=progress-indicator]]:bg-[#E6D7E9]"
                 />
               </div>
 
@@ -1147,10 +1158,10 @@ export default function ProjectedMetricsPage() {
                     ${latestMetrics.trailing_weekly_revenue.toLocaleString()}
                   </span>
                 </div>
-                <Progress 
-                  value={Math.min((latestMetrics.trailing_weekly_revenue / 5000) * 100, 100)} 
+                <Progress
+                  value={Math.min((latestMetrics.trailing_weekly_revenue / 5000) * 100, 100)}
                   style={{ backgroundColor: colors.progressBg }}
-                  className={`w-full [&>div]:bg-[${colors.progressBar}]`}
+                  className="w-full [&>[data-slot=progress-indicator]]:bg-[#E6D7E9]"
                 />
               </div>
             </div>
