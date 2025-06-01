@@ -133,6 +133,7 @@ const colors = {
   tooltipBg: "#4A314D", // Dark purple for tooltip
   progressBar: "#E6D7E9", // Progress bar color
   progressBg: "#F4E6E6", // Progress bar background
+  utilizationEmpty: '#D6D2D9', // A light, neutral gray distinct from grid lines
   revenueChart: {
     line: "#E6D7E9", // Line color
     background: "#FFF5F3", // Background fill
@@ -731,6 +732,15 @@ export default function ProjectedMetricsPage() {
 
   const provider = providers.find((p) => p.id === selectedProvider);
 
+  // Console logs for Performance Metrics progress bar values
+  const utilizationValue = latestMetrics.booked_rate * 100;
+  const occurredRateValue = latestMetrics.occurred_rate * 100;
+  const revenueProgressValue = Math.min((latestMetrics.trailing_weekly_revenue / 5000) * 100, 100);
+
+  console.log("Performance Metrics - Utilization Value:", utilizationValue);
+  console.log("Performance Metrics - Occurred Rate Value:", occurredRateValue);
+  console.log("Performance Metrics - Revenue Progress Value:", revenueProgressValue);
+
   return (
     <>
       <style jsx global>
@@ -998,8 +1008,15 @@ export default function ProjectedMetricsPage() {
                         return null;
                       }}
                     />
-                    <Bar dataKey="availability_hours" stackId="a" fill={colors.lavender} name="Used Hours" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="remaining_hours" stackId="a" fill={colors.progressBg} name="Available Capacity" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="availability_hours" stackId="a" fill={colors.lavender} name="Used Hours" radius={[4, 4, 0, 0]}>
+                      <LabelList
+                        dataKey="utilizationRate"
+                        position="center"
+                        formatter={(value: number) => `${value.toFixed(0)}%`}
+                        style={{ fill: colors.text, fontSize: '10px' }}
+                      />
+                    </Bar>
+                    <Bar dataKey="remaining_hours" stackId="a" fill={colors.utilizationEmpty} name="Available Capacity" radius={[0, 0, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
