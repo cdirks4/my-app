@@ -237,6 +237,52 @@ export function RevenueTrendCard({ data }: { data: any[] }) {
   );
 }
 
+// Custom Bar Shape for Proportional Fill
+const ProportionalBar = (props: any) => {
+  const { x, y, width, height, payload, fill } = props; // 'fill' from <Bar fill={...}> is background
+  const utilizationRate = payload.utilizationRate || 0; // Expects 0-100
+
+  const barRadius = 4;
+
+  const backgroundFill = fill; // Use the fill from <Bar> for the background track
+  const foregroundFill = colors.lavender; // Used hours color
+
+  // Calculate height of the filled portion
+  const filledHeight = Math.max(0, height * (utilizationRate / 100));
+  // Y position for the filled rectangle (drawn from top down in SVG, so y is top)
+  // For a bar filling from bottom up, the filled part's y is original_y + (total_height - filled_height)
+  const filledY = y + (height - filledHeight);
+
+  if (width <= 0 || height <= 0) {
+    return null;
+  }
+
+  return (
+    <g>
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill={backgroundFill}
+        rx={barRadius}
+        ry={barRadius}
+      />
+      {utilizationRate > 0 && ( // Only draw filled rectangle if there's utilization
+        <rect
+          x={x}
+          y={filledY}
+          width={width}
+          height={filledHeight}
+          fill={foregroundFill}
+          rx={barRadius}
+          ry={barRadius}
+        />
+      )}
+    </g>
+  );
+};
+
 const AppointmentProjectionsChart = ({ data, provider }) => (
   <div className="bg-white w-full h-[300px]">
     <ResponsiveContainer width="100%" height="100%">
@@ -675,7 +721,7 @@ export default function ProjectedMetricsPage() {
           weeklyRevenue: item.weeklyRevenue, // Presumed sum or already handled
           availability_hours,
           total_potential_appointments,
-          remaining_hours: Math.max(0, total_potential_appointments - availability_hours),
+          // remaining_hours: Math.max(0, total_potential_appointments - availability_hours), // This line is removed
           // Optional: Recalculate utilizationRate if needed for other charts from this chartData
           utilizationRate: total_potential_appointments > 0 ? Number(((availability_hours / total_potential_appointments) * 100).toFixed(2)) : 0,
         };
@@ -985,8 +1031,7 @@ export default function ProjectedMetricsPage() {
                           const item = payload[0].payload;
                           const usedHours = item.availability_hours;
                           const totalHours = item.total_potential_appointments;
-                          const remainingHours = item.remaining_hours;
-                          const rate = totalHours > 0 ? ((usedHours / totalHours) * 100).toFixed(1) : 0;
+                          const rate = item.utilizationRate; // Already 0-100
                           return (
                             <div
                               style={{
@@ -998,25 +1043,20 @@ export default function ProjectedMetricsPage() {
                               }}
                             >
                               <p style={{ color: colors.white, fontWeight: 'bold', marginBottom: '0.25rem' }}>{label}</p>
-                              <p style={{ color: colors.lavender }}>Used: {usedHours} hrs</p>
-                              <p style={{ color: colors.progressBg }}>Available: {remainingHours} hrs</p>
-                              <p style={{ color: colors.white }}>Total: {totalHours} hrs</p>
-                              <p style={{ color: colors.white }}>Rate: {rate}%</p>
+                              <p style={{ color: colors.lavender }}>Used: {usedHours.toFixed(1)} hrs</p>
+                              <p style={{ color: colors.white }}>Total: {totalHours.toFixed(1)} hrs</p>
+                              <p style={{ color: colors.white }}>Rate: {rate.toFixed(1)}%</p>
                             </div>
                           );
                         }
                         return null;
                       }}
                     />
-                    <Bar dataKey="availability_hours" stackId="a" fill={colors.lavender} name="Used Hours" radius={[4, 4, 0, 0]}>
-                      <LabelList
-                        dataKey="utilizationRate"
-                        position="center"
-                        formatter={(value: number) => `${value.toFixed(0)}%`}
-                        style={{ fill: colors.text, fontSize: '10px' }}
-                      />
-                    </Bar>
-                    <Bar dataKey="remaining_hours" stackId="a" fill={colors.utilizationEmpty} name="Available Capacity" radius={[0, 0, 0, 0]} />
+                    <Bar
+                      dataKey="total_potential_appointments"
+                      shape={<ProportionalBar />}
+                      fill={colors.utilizationEmpty}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
